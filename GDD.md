@@ -1,231 +1,182 @@
-# Game Design Document: 2D_Puzzel
+# GAME DESIGN DOCUMENT
 
-| Field | Value |
-|---|---|
-| **Project Name** | 2D_Puzzel |
-| **Version** | 1.0 |
-| **Platform** | Android / iOS / PC (Unity) |
-| **Target Audience** | Casual mobile gamers, 12–45, both genders |
-| **Estimated TTH (Time to Hollow)** | 3–5 phút/session |
+## Project Information
 
----
-
-## 1. Game Overview
-
-### Elevator Pitch
-Một game block puzzle kéo-thả 2D, nơi người chơi sắp xếp các khối đa dạng lên lưới để tạo thành hàng và cột đầy đủ, xoá chúng và tích điểm. Không giới hạn thời gian, chỉ cần bạn còn nước đi.
-
-### Core Fantasy
-> "Cảm giác thư giãn khi kéo những khối màu vào đúng vị trí, và hài lòng khi cả hàng biến mất trong một nhịp."
-
-### Unique Selling Points
-1. **Drag-and-Drop mượt** — kéo thả trực tiếp, feedback real-time màu sắc (xanh = OK, đỏ = lỗi) ngay trên block.
-2. **Shape đa dạng** — định nghĩa shape dạng ma trận bool qua ScriptableObject, dễ dàng thêm hàng trăm shape mà không cần code.
-3. **Request Shape** — 3 lượt/ván để đổi shape mới, tạo chiến thuật và cứu thua.
+| Item            | Description                     |
+| --------------- | ------------------------------- |
+| Project Name    | 2D Puzzle                       |
+| Genre           | Puzzle / Casual                 |
+| Platform        | Android, iOS, PC                |
+| Target Audience | Người chơi casual từ 12–45 tuổi |
+| Session Length  | 3–5 phút                        |
 
 ---
 
-## 2. Core Gameplay
+# 1. Game Overview
 
-### Core Loop
-```
-[Shape xuất hiện] → [Kéo thả vào lưới] → [Hàng/Cột đầy → Xoá] → [Score +] → [Shape mới xuất hiện]
-                                 ↑                                         ↓
-                                 └────────── [Hết nước đi → Game Over] ←───┘
-```
+## Game Concept
 
-### Session Flow
-| Phase | Mô tả |
-|---|---|
-| **Menu** | Nhấn Space/Click để bắt đầu |
-| **Playing** | Kéo thả shape, xoá hàng/cột, ghi điểm |
-| **Game Over** | Popup hiện best score, chọn Try Again hoặc Back to Home |
-| **Timer (nếu không chọn)** | 3s countdown → tự động về menu |
+2D Puzzle là một trò chơi xếp khối theo lượt, nơi người chơi kéo thả các khối hình khác nhau lên bàn chơi để hoàn thành hàng hoặc cột. Khi một hàng hoặc cột được lấp đầy, chúng sẽ bị xóa và người chơi nhận điểm thưởng.
 
-### Win/Lose Conditions
-- **Lose**: Không còn shape nào có thể đặt vào bất kỳ vị trí nào trên lưới.
-- **Win**: Không có win condition (endless score chasing). Best score là mục tiêu.
+Trò chơi không có giới hạn thời gian. Ván chơi chỉ kết thúc khi người chơi không còn vị trí hợp lệ để đặt các khối hiện có.
 
----
+## Core Experience
 
-## 3. Progression & Difficulty
+Mang đến trải nghiệm thư giãn, dễ tiếp cận và phù hợp với mọi đối tượng người chơi, đồng thời khuyến khích tư duy sắp xếp và quản lý không gian hiệu quả.
 
-### Player Progression
-- **Best Score** — mục tiêu duy nhất, lưu qua PlayerPrefs.
-- **Request Count** — 3 lượt request/ván (lưu qua PlayerPrefs).
+## Key Features
 
-### Difficulty Curve
-Không có difficulty curve tuyến tính. Độ khó phụ thuộc vào:
-- Kích thước lưới (5×5 dễ → 10×10 khó hơn vì shape to chiếm nhiều ô).
-- Shape pool càng nhiều shape dị dạng → khó hơn.
-
-### Unlock System
-*Chưa có — đề xuất ở phần mở rộng.*
+* Kéo thả khối trực tiếp lên bàn chơi.
+* Hệ thống shape đa dạng.
+* Xóa hàng và cột để ghi điểm.
+* Lưu điểm cao nhất giữa các phiên chơi.
+* Tính năng đổi shape giới hạn số lần sử dụng.
 
 ---
 
-## 4. Systems Design
+# 2. Core Gameplay
 
-### 4.1 Board System
-- **Lưới**: 5×5 đến 10×10 (config qua Inspector).
-- **Tile**: Mỗi ô có 2 child: hide tile (mask) + shape block (nếu có).
-- **Index**: `Dictionary<Vector2Int, GameObject>` ánh xạ vị trí → tile.
-- **Màu nền**: Xen kẽ normal/highlight tạo bàn cờ.
+## Gameplay Loop
 
-### 4.2 Shape System
-- **ShapeData** (`ScriptableObject`): ma trận bool, row × column.
-- **Storage**: `List<ShapeData>` load từ Resources/ShapeData.
-- **Generate**: Random shape từ storage, tối đa 3 shape cùng lúc.
-- **Color**: Random từ SquaresColor, tránh màu RED (reserved cho error).
+1. Nhận các shape ngẫu nhiên.
+2. Kéo thả shape lên bàn chơi.
+3. Hoàn thành hàng hoặc cột để xóa chúng.
+4. Nhận điểm thưởng.
+5. Tiếp tục cho đến khi không còn nước đi.
 
-### 4.3 Drag & Drop
-| Event | Hành vi |
-|---|---|
-| OnPointerDown | Phóng to 1.25x, lưu vị trí |
-| OnBeginDrag | Reset anchor/pivot cho từng block |
-| OnDrag | Move theo chuột |
-| OnPointerUp | Check từng block `canDrop`, phục hồi anchor |
-| OnEndDrag | Hợp lệ → gắn vào tile. Không hợp lệ → về vị trí cũ |
+## Win / Lose Condition
 
-### 4.4 Line Clear System
-- Khi tile đầy (childCount == 2) → check hàng và cột.
-- Duyệt từ `Vector2Int.right` và `Vector2Int.up`.
-- Nếu tất cả tile trong line đều có shape → clear all.
-- Score bonus cho multi-line clear.
+### Win Condition
 
-### 4.5 Scoring
-| Action | Points |
-|---|---|
-| Mỗi block đặt | +5 |
-| 1 line (hàng/cột) | +10 |
-| 2 lines (hàng + cột) | +20 |
+Không có điều kiện chiến thắng. Người chơi cố gắng đạt điểm số cao nhất có thể.
 
-### 4.6 Save/Load
-- **Storage**: PlayerPrefs.
-- **Save**: Khi thoát PlayMode (chưa game over) hoặc Back to Home.
-- **Load**: Khi scene Awake.
-- **Data**: BoardData (JSON serialization), Score, Shape slot index.
+### Lose Condition
+
+Trò chơi kết thúc khi không còn vị trí hợp lệ để đặt bất kỳ shape nào đang có.
 
 ---
 
-## 5. Content Design
+# 3. Core Systems
 
-### Shape Library
-Hiện tại đang dùng shapeScriptableObject asset. Các shape mẫu nên có:
+## Board System
 
-| Shape | Kích thước | Ghi chú |
-|---|---|---|
-| 1×1 | 1×1 | Cơ bản nhất |
-| 2×1 / 1×2 | 2×1 / 1×2 | Line ngắn |
-| 3×1 / 1×3 | 3×1 / 1×3 | Line dài |
-| 2×2 | 2×2 | Square |
-| 3×3 L | 3×3 | L-shape (7 ô) |
-| T-shape | 3×3 | 5 ô |
-| Z-shape | 3×3 | 4–5 ô |
-| Custom | variable | Các shape đặc biệt |
+* Bàn chơi dạng lưới vuông.
+* Kích thước có thể thay đổi tùy phiên bản.
+* Mỗi ô chỉ chứa tối đa một block.
 
-Khuyến nghị: 20–30 shape cho bản full.
+## Shape System
 
-### Visual Style
-- **Blocks**: Sprite màu flat, nhiều màu (trừ RED).
-- **Board**: Background grid màu pastel.
-- **Feedback**: RED overlay khi lỗi, trắng sáng khi hover hợp lệ.
-- **Animation** (hiện có): Animator cho Writings (notification text khi clear line).
+Các shape được tạo ngẫu nhiên từ thư viện shape có sẵn.
 
----
+Ví dụ:
 
-## 6. Monetization (Đề xuất)
+* 1×1
+* 1×2
+* 2×2
+* L Shape
+* T Shape
+* Z Shape
 
-| Loại | Mô tả | Fit |
-|---|---|---|
-| **Rewarded Ads** | Xem quảng cáo → +3 Request Shape | ★★★★★ |
-| **Banner Ads** | Banner dưới màn hình | ★★★★☆ |
-| **IAP Remove Ads** | Gỡ toàn bộ quảng cáo ($1.99) | ★★★★☆ |
-| **Cosmetic Skins** | Theme màu cho board/block ($0.99) | ★★★☆☆ |
+## Drag & Drop System
 
-*Ưu tiên: Rewarded Ads → IAP Remove Ads, tránh gacha/pay-to-win để giữ casual audience.*
+Người chơi có thể:
 
----
+* Chọn shape.
+* Kéo shape đến vị trí mong muốn.
+* Thả shape để đặt vào bàn chơi.
 
-## 7. Retention & Live-Ops (Đề xuất)
+Nếu vị trí hợp lệ, shape sẽ được đặt xuống. Nếu không hợp lệ, shape sẽ trở về vị trí ban đầu.
 
-| Feature | Mục đích |
-|---|---|
-| **Daily Challenge** | Lưới + shape pool cố định mỗi ngày, ai điểm cao nhất |
-| **Achievement System** | "Xoá 1000 block", "Đạt 5000 điểm" |
-| **Endless Mode** | Giữ nguyên luật chơi, countdown timer tạo áp lực |
-| **Leaderboard** | Game Center / Google Play Services |
+## Line Clear System
+
+Sau khi đặt shape:
+
+* Hàng đầy sẽ bị xóa.
+* Cột đầy sẽ bị xóa.
+* Người chơi nhận điểm thưởng tương ứng.
 
 ---
 
-## 8. Technical Notes
+# 4. Scoring System
 
-| Item | Ghi chú |
-|---|---|
-| **Rendering** | 2D, URP (hiện tại đang dùng built-in) |
-| **Input** | Mouse + Touch (Unity EventSystem) |
-| **Save System** | PlayerPrefs — nên nâng cấp lên JSON file + encryption |
-| **Analytics** | Chưa có — nên gắn sự kiện: `game_start`, `shape_placed`, `line_clear`, `game_over` |
-| **Performance** | ObjectPooling cho block, không Instantiate/Destroy liên tục |
+| Action                  | Points     |
+| ----------------------- | ---------- |
+| Xóa 1 line              | +10        |
+| Xóa nhiều line cùng lúc | Bonus điểm |
 
-### Điểm yếu kỹ thuật hiện tại
-1. **Singleton không thread-safe** — không vấn đề với game đơn luồng.
-2. **Observer dùng delegate static** — có thể gây memory leak nếu không remove listener đúng.
-3. **PlayerPrefs plaintext** — dễ bị hack điểm. Nên dùng `PlayerPrefs.SetString` với encode nhẹ.
+Mục tiêu chính của người chơi là đạt được điểm số cao nhất.
 
 ---
 
-## 9. MVP Scope
+# 5. Progression
 
-### Must Have (v1.0)
-- Lưới 5×5 + 10 shape cơ bản
-- Kéo thả + line clear + score
-- Game Over + Best Score
-- Menu scene
-- Request Shape (3 lượt)
+## Best Score
 
-### Nice To Have
-- Animation clear line
-- Sound FX + BGM
-- Haptic feedback
-- Difficulty select (grid size)
+Điểm cao nhất được lưu lại để người chơi có mục tiêu vượt qua trong các lần chơi tiếp theo.
 
-### Future Features
-- Daily Challenge
-- Leaderboard
-- IAP / Rewarded Ads
-- Skin/themes
-- Undo button
-- Hint system
+## Request Shape
+
+Mỗi ván người chơi có một số lượt đổi shape nhất định.
+
+Tính năng này giúp giảm yếu tố may rủi và tạo thêm lựa chọn chiến thuật.
 
 ---
 
-## 10. Design Review
+# 6. Visual Direction
 
-| Tiêu chí | Score (1–10) | Ghi chú |
-|---|---|---|
-| **Market Fit** | 7 | Thể loại block puzzle đã chứng minh (1010!, Block Puzzle), nhưng cạnh tranh cao |
-| **Innovation** | 4 | Drag-and-drop là cải tiến nhỏ so với tap-to-place; cần thêm USP |
-| **Production Risk** | 3 | Codebase đơn giản, không phụ thuộc backend, dễ ship |
-| **Monetization Potential** | 6 | Casual audience trả tiền thấp, nhưng rewarded ads là nguồn stable |
+## Art Style
 
-### 3 Features Để Tạo Khác Biệt
+* Đồ họa 2D tối giản.
+* Màu sắc tươi sáng.
+* Giao diện thân thiện và dễ nhìn trên thiết bị di động.
 
-1. **🔮 Shape Preview + Ghost Block** — Khi kéo shape, hiển thị ghost (trong suốt) tại vị trí sẽ đặt trước khi thả — giảm cognitive load, tăng UX mượt.
-2. **⚡ Combo Chain** — Xoá 2+ line liên tiếp trong 1 lần đặt → nhân điểm (×2, ×3, ×5). HUD hiệu ứng combo tạo cảm giác thoả mãn.
-3. **🎨 Color Match Bonus** — Block cùng màu với tile nền → +2 điểm thưởng. Tile nền random màu mỗi ván, tạo layer chiến thuật mới.
+## Feedback
+
+* Hiển thị trạng thái hợp lệ khi kéo shape.
+* Hiệu ứng khi xóa hàng hoặc cột.
+* Hiệu ứng hiển thị điểm số.
 
 ---
 
-## 11. Next Development Steps
+# 7. MVP Scope
 
-| Step | Task | Priority |
-|---|---|---|
-| 1 | Thêm ghost preview khi kéo shape | P0 |
-| 2 | Animation clear line (fade + particle) | P0 |
-| 3 | Sound FX + BGM | P1 |
-| 4 | Combo chain scoring | P1 |
-| 5 | Color match bonus | P2 |
-| 6 | Daily Challenge mode | P2 |
-| 7 | Rewarded Ads integration | P2 |
-| 8 | Leaderboard | P3 |
+## Must Have
+
+* Board System
+* Shape System
+* Drag & Drop
+* Line Clear
+* Score System
+* Best Score Save
+* Game Over Screen
+
+## Nice To Have
+
+* Hiệu ứng âm thanh
+* Haptic Feedback
+* Animation xóa line
+* Nhiều kích thước bàn chơi
+
+---
+
+# 8. Future Improvements
+
+### Ghost Placement Preview
+
+Hiển thị vị trí dự kiến của shape trước khi thả.
+
+### Combo System
+
+Thưởng điểm khi người chơi liên tục tạo line clear.
+
+### Daily Challenge
+
+Cung cấp thử thách mới mỗi ngày với mục tiêu điểm số riêng.
+
+### Achievement System
+
+Bổ sung hệ thống thành tích để tăng động lực chơi lâu dài.
+
+### Leaderboard
+
+Cho phép người chơi cạnh tranh điểm số với những người chơi khác trên bảng xếp hạng trực tuyến.
